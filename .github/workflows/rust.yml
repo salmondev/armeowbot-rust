@@ -10,13 +10,46 @@ env:
   CARGO_TERM_COLOR: always
 
 jobs:
-  build:
-
+  build-and-deploy:
     runs-on: ubuntu-latest
 
     steps:
     - uses: actions/checkout@v4
+
+    - name: Set up Rust
+      uses: actions-rs/toolchain@v1
+      with:
+        toolchain: stable
+
     - name: Build
-      run: cargo build --verbose
+      run: cargo build --release
+
     - name: Run tests
       run: cargo test --verbose
+
+    - name: Deploy to EC2
+      uses: appleboy/ssh-action@v0.1.6
+      with:
+        host: ${{ secrets.EC2_HOST }}
+        username: ${{ secrets.EC2_USER }}
+        key: ${{ secrets.EC2_KEY }}
+        port: 22
+        script: |
+          # Stop and remove the existing container if it exists
+          docker stop armeowbot-rust || true
+          docker rm armeowbot-rust || true
+
+          # Remove the existing bot image if it exists
+          docker rmi armeowbot-rust || true
+
+          # Clone the repository to the EC2 instance
+          cd /home/${{ secrets.EC2_USER }}/app || git clone https://github.com/salmondev/armeowbot-rust.git app
+
+          # Navigate to the project directory
+          cd /home/${{ secrets.EC2_USER }}/app
+
+          # Build the Docker image
+          docker build -t armeowbot-rust .
+
+          # Run the container with the updated image
+          docker run -d --name armeowbot-rust --env-file /env/.env armeowbot-rust
