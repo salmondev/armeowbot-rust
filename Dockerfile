@@ -8,5 +8,4 @@ RUN cargo build --release
 FROM debian:buster-slim
 WORKDIR /app
 COPY --from=builder /usr/src/app/target/release/armeowbot-rust /app/
-COPY .env /env/.env
 CMD ["/app/armeowbot-rust"]
