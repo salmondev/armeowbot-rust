@@ -36,6 +36,8 @@ jobs:
         port: 22
         script: |
           sudo usermod -aG docker $USER
+          sudo mkdir -p /env
+          echo "DISCORD_TOKEN=${{ secrets.DISCORD_TOKEN }}" | sudo tee /env/.env
           mkdir -p /home/${{ secrets.EC2_USER }}/app
           cd /home/${{ secrets.EC2_USER }}/app || git clone https://github.com/salmondev/armeowbot-rust.git app
           cd /home/${{ secrets.EC2_USER }}/app
@@ -44,4 +46,3 @@ jobs:
           docker rmi armeowbot-rust || true
           docker build -t armeowbot-rust .
           docker run -d --name armeowbot-rust --env-file /env/.env armeowbot-rust
-
