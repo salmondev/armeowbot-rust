@@ -35,6 +35,7 @@ jobs:
           key: ${{ secrets.EC2_KEY }}
           port: 22
           script: |
+            echo "ServerAliveInterval 60" >> ~/.ssh/config
             # Ensure Docker is configured for the current user
             sudo usermod -aG docker $USER
             sudo systemctl restart docker
