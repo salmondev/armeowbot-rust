@@ -35,21 +35,13 @@ jobs:
         key: ${{ secrets.EC2_KEY }}
         port: 22
         script: |
-          # Stop and remove the existing container if it exists
+          sudo usermod -aG docker $USER
+          mkdir -p /home/${{ secrets.EC2_USER }}/app
+          cd /home/${{ secrets.EC2_USER }}/app || git clone https://github.com/salmondev/armeowbot-rust.git app
+          cd /home/${{ secrets.EC2_USER }}/app
           docker stop armeowbot-rust || true
           docker rm armeowbot-rust || true
-
-          # Remove the existing bot image if it exists
           docker rmi armeowbot-rust || true
-
-          # Clone the repository to the EC2 instance
-          cd /home/${{ secrets.EC2_USER }}/app || git clone https://github.com/salmondev/armeowbot-rust.git app
-
-          # Navigate to the project directory
-          cd /home/${{ secrets.EC2_USER }}/app
-
-          # Build the Docker image
           docker build -t armeowbot-rust .
-
-          # Run the container with the updated image
           docker run -d --name armeowbot-rust --env-file /env/.env armeowbot-rust
+
