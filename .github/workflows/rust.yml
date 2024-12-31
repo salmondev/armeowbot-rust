@@ -2,9 +2,9 @@ name: Rust
 
 on:
   push:
-    branches: [ "main" ]
+    branches: ["main"]
   pull_request:
-    branches: [ "main" ]
+    branches: ["main"]
 
 env:
   CARGO_TERM_COLOR: always
@@ -14,35 +14,47 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-    - name: Set up Rust
-      uses: actions-rs/toolchain@v1
-      with:
-        toolchain: stable
+      - name: Set up Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
 
-    - name: Build
-      run: cargo build --release
+      - name: Build
+        run: cargo build --release
 
-    - name: Run tests
-      run: cargo test --verbose
+      - name: Run tests
+        run: cargo test --verbose
 
-    - name: Deploy to EC2
-      uses: appleboy/ssh-action@v0.1.6
-      with:
-        host: ${{ secrets.EC2_HOST }}
-        username: ${{ secrets.EC2_USER }}
-        key: ${{ secrets.EC2_KEY }}
-        port: 22
-        script: |
-          sudo usermod -aG docker $USER
-          sudo mkdir -p /env
-          echo "DISCORD_TOKEN=${{ secrets.DISCORD_TOKEN }}" | sudo tee /env/.env
-          mkdir -p /home/${{ secrets.EC2_USER }}/app
-          cd /home/${{ secrets.EC2_USER }}/app || git clone https://github.com/salmondev/armeowbot-rust.git app
-          cd /home/${{ secrets.EC2_USER }}/app
-          docker stop armeowbot-rust || true
-          docker rm armeowbot-rust || true
-          docker rmi armeowbot-rust || true
-          docker build -t armeowbot-rust .
-          docker run -d --name armeowbot-rust --env-file /env/.env armeowbot-rust
+      - name: Deploy to EC2
+        uses: appleboy/ssh-action@v0.1.6
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USER }}
+          key: ${{ secrets.EC2_KEY }}
+          port: 22
+          script: |
+            # Ensure Docker is configured for the current user
+            sudo usermod -aG docker $USER
+            sudo systemctl restart docker
+
+            # Prepare the environment file
+            sudo mkdir -p /env
+            echo "DISCORD_TOKEN=${{ secrets.DISCORD_TOKEN }}" | sudo tee /env/.env
+
+            # Clone or update the repository
+            mkdir -p /home/${{ secrets.EC2_USER }}/app
+            if [ ! -d /home/${{ secrets.EC2_USER }}/app/.git ]; then
+              git clone https://github.com/salmondev/armeowbot-rust.git /home/${{ secrets.EC2_USER }}/app
+            else
+              cd /home/${{ secrets.EC2_USER }}/app && git pull
+            fi
+
+            # Build and deploy the Docker container
+            cd /home/${{ secrets.EC2_USER }}/app
+            docker stop armeowbot-rust || true
+            docker rm armeowbot-rust || true
+            docker rmi armeowbot-rust || true
+            docker build -t armeowbot-rust .
+            docker run -d --name armeowbot-rust --env-file /env/.env armeowbot-rust
